@@ -40,11 +40,20 @@ class TranslatableSubscriber extends AbstractSubscriber
     private $translationTrait;
     private $translatableFetchMode;
     private $translationFetchMode;
+    private $localeColumnName;
+    private $translationIdColumnName;
 
-    public function __construct(ClassAnalyzer $classAnalyzer, callable $currentLocaleCallable = null,
-                                callable $defaultLocaleCallable = null,$translatableTrait, $translationTrait,
-                                $translatableFetchMode, $translationFetchMode)
-    {
+    public function __construct(
+        ClassAnalyzer $classAnalyzer,
+        callable $currentLocaleCallable = null,
+        callable $defaultLocaleCallable = null,
+        $translatableTrait,
+        $translationTrait,
+        $translatableFetchMode,
+        $translationFetchMode,
+        $localeColumnName,
+        $translationIdColumnName
+    ) {
         parent::__construct($classAnalyzer, false);
 
         $this->currentLocaleCallable = $currentLocaleCallable;
@@ -53,6 +62,9 @@ class TranslatableSubscriber extends AbstractSubscriber
         $this->translationTrait = $translationTrait;
         $this->translatableFetchMode = $this->convertFetchString($translatableFetchMode);
         $this->translationFetchMode = $this->convertFetchString($translationFetchMode);
+
+        $this->localeColumnName = $localeColumnName;
+        $this->translationIdColumnName = $translationIdColumnName;
     }
 
     /**
@@ -221,7 +233,7 @@ class TranslatableSubscriber extends AbstractSubscriber
                 'cascade'      => ['persist', 'merge'],
                 'fetch'        => $this->translationFetchMode,
                 'joinColumns'  => [[
-                    'name'                 => 'translatable_id',
+                    'name'                 => $this->translationIdColumnName,
                     'referencedColumnName' => 'id',
                     'onDelete'             => 'CASCADE'
                 ]],
@@ -232,14 +244,15 @@ class TranslatableSubscriber extends AbstractSubscriber
         $name = $classMetadata->getTableName().'_unique_translation';
         if (!$this->hasUniqueTranslationConstraint($classMetadata, $name)) {
             $classMetadata->table['uniqueConstraints'][$name] = [
-                'columns' => ['translatable_id', 'locale' ]
+                'columns' => [$this->translationIdColumnName, $this->localeColumnName]
             ];
         }
 
         if (!($classMetadata->hasField('locale') || $classMetadata->hasAssociation('locale'))) {
             $classMetadata->mapField(array(
                 'fieldName' => 'locale',
-                'type'      => 'string'
+                'type' => 'string',
+                'columnName' => $this->localeColumnName,
             ));
         }
 
